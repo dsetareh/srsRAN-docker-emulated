@@ -26,8 +26,6 @@ services:
       - SYS_NICE
     devices:
       - /dev/net/tun
-    volumes:
-      - ./pcaps:/pcaps
   srsenb:
     container_name: virtual-srsenb
     build: .
@@ -38,6 +36,8 @@ services:
     ipc: shareable
     cap_add:
       - SYS_NICE
+    volumes:
+      - ./pcaps:/pcaps
   srsue:
     << : *ue-settings
     container_name: virtual-srsue
