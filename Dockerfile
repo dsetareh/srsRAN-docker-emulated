@@ -34,12 +34,6 @@ RUN git checkout ${COMMIT}
 
 WORKDIR /srsran/build
 
-# copy over custom configs for srsRAN
-COPY ./ue.conf.fauxrf  /etc/srsran/
-COPY ./epc.conf        /etc/srsran/
-COPY ./enb.conf.fauxrf /etc/srsran/
-
-
 RUN cmake -j$(nproc) ../
 RUN make -j$(nproc)
 RUN make -j$(nproc) install
