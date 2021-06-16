@@ -26,6 +26,8 @@ services:
       - SYS_NICE
     devices:
       - /dev/net/tun
+    volumes:
+      - ./pcaps:/pcaps
   srsenb:
     container_name: virtual-srsenb
     build: .
