@@ -25,14 +25,20 @@ RUN rm -rf /var/lib/apt/lists/*
 WORKDIR /srsran
 
 # Pinned git commit used for this example
-ARG COMMIT=48cfe041f06942bb32213a126f7706a46a676713
+ARG COMMIT=3f231fee6ecc7ea4e7c572397ab903204c65e2ed
 
 # Download and build
-RUN git clone https://github.com/srsRAN/srsRAN.git ./
+RUN git clone https://github.com/dsetareh/srsRAN.git ./
 RUN git fetch origin ${COMMIT}
 RUN git checkout ${COMMIT}
 
 WORKDIR /srsran/build
+
+# copy over custom configs for srsRAN
+COPY ./ue.conf.fauxrf  /etc/srsran/
+COPY ./epc.conf        /etc/srsran/
+COPY ./enb.conf.fauxrf /etc/srsran/
+
 
 RUN cmake -j$(nproc) ../
 RUN make -j$(nproc)
