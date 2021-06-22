@@ -7,7 +7,9 @@ if len(sys.argv) != 4:
     )
     quit(1)
 
-with open("docker-compose-template.yml", 'r') as ymlfile:
+with open(
+        "/home/dsetareh/docker/srsRAN-docker-emulated/docker-compose-template.yml",
+        'r') as ymlfile:
     try:
         docker_config = yaml.safe_load(ymlfile)
     except yaml.YAMLError as exc:
@@ -29,6 +31,11 @@ docker_config['services']['srsepc']['networks']['corenet'][
 
 docker_config['services']['srsenb'][
     'command'] = 'srsenb /etc/srsran/enb.conf.fauxrf --enb.mme_addr=' + epc_ip + ' --enb.gtp_bind_addr=' + enb_ip + ' --enb.s1c_bind_addr=' + enb_ip + ' --pcap.filename = /srsran/enb_' + test_number + '.pcap'
+
+docker_config['services']['srsenb']['volumes'][0] = './pcaps:/pcaps'
+docker_config['services']['srsepc']['volumes'][0] = './epclogs:/epclogs'
+docker_config['services']['srsue']['volumes'][0] = './uelogs:/uelogs'
+docker_config['services']['srsenb']['volumes'][0] = './enblogs:/enblogs'
 
 docker_config['services']['srsenb']['networks']['corenet'][
     'ipv4_address'] = enb_ip

@@ -13,6 +13,8 @@ services:
       - SYS_NICE
     devices:
       - /dev/net/tun
+    volumes:
+      - VOLUME_PLACEHOLDER
   srsenb:
     container_name: virtual-srsenb
     image: srsran-docker-emulated_srsenb:latest
@@ -24,7 +26,7 @@ services:
     cap_add:
       - SYS_NICE
     volumes:
-      - ./pcaps:/pcaps
+      - VOLUME_PLACEHOLDER
   srsue:
     image: srsran-docker-emulated_srsue:latest
     command: UE_CMD_PLACEHOLDER
@@ -37,6 +39,8 @@ services:
     depends_on:
       - srsenb
     container_name: virtual-srsue
+    volumes:
+      - VOLUME_PLACEHOLDER
 
 networks:
   corenet:
