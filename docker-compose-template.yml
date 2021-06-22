@@ -1,22 +1,9 @@
 version: '3.8'
 
-x-srsue:
-  &ue-settings
-  build: .
-  command: UE_CMD_PLACEHOLDER
-  ipc: service:srsenb
-  cap_add:
-    - NET_ADMIN
-    - SYS_NICE
-  devices:
-    - /dev/net/tun
-  depends_on:
-    - srsenb
-
 services:
   srsepc:
     container_name: virtual-srsepc
-    build: .
+    image: srsran-docker-emulated_srsepc:latest
     command: EPC_CMD_PLACEHOLDER
     networks:
       corenet:
@@ -28,7 +15,7 @@ services:
       - /dev/net/tun
   srsenb:
     container_name: virtual-srsenb
-    build: .
+    image: srsran-docker-emulated_srsenb:latest
     command: ENB_CMD_PLACEHOLDER
     networks:
       corenet:
@@ -39,12 +26,17 @@ services:
     volumes:
       - ./pcaps:/pcaps
   srsue:
-    << : *ue-settings
+    image: srsran-docker-emulated_srsue:latest
+    command: UE_CMD_PLACEHOLDER
+    ipc: service:srsenb
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+    devices:
+      - /dev/net/tun
+    depends_on:
+      - srsenb
     container_name: virtual-srsue
-  # srsue2:
-  #   << : *ue-settings
-  #   container_name: virtual-srsue2
-  #   command: "srsue ue.conf.fauxrf --usim.imsi=001010123456780"
 
 networks:
   corenet:
