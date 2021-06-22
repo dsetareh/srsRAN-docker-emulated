@@ -30,9 +30,10 @@ docker_config['services']['srsepc']['networks']['corenet'][
     'ipv4_address'] = epc_ip
 
 docker_config['services']['srsenb'][
-    'command'] = 'srsenb /etc/srsran/enb.conf.fauxrf --enb.mme_addr=' + epc_ip + ' --enb.gtp_bind_addr=' + enb_ip + ' --enb.s1c_bind_addr=' + enb_ip + ' --pcap.filename = /pcaps/enb_' + test_number + '.pcap'
+    'command'] = 'srsenb /etc/srsran/enb.conf.fauxrf --enb.mme_addr=' + epc_ip + ' --enb.gtp_bind_addr=' + enb_ip + ' --enb.s1c_bind_addr=' + enb_ip
 
-docker_config['services']['srsenb']['volumes'][0] = './pcaps:/pcaps'
+docker_config['services']['srsenb']['volumes'][
+    0] = './pcaps/' + test_number + '.pcap:/pcaps/enb.pcap'
 
 docker_config['services']['srsenb']['networks']['corenet'][
     'ipv4_address'] = enb_ip
