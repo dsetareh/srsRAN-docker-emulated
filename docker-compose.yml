@@ -12,6 +12,7 @@ x-srsue:
     - /dev/net/tun
   depends_on:
     - srsenb
+  image: srsran-docker-emulated_srsue:latest
 
 services:
   srsepc:
@@ -26,6 +27,7 @@ services:
       - SYS_NICE
     devices:
       - /dev/net/tun
+    image: srsran-docker-emulated_srsepc:latest
   srsenb:
     container_name: virtual-srsenb
     build: .
@@ -38,6 +40,7 @@ services:
       - SYS_NICE
     volumes:
       - ./pcaps:/pcaps
+    image: srsran-docker-emulated_srsenb:latest
   srsue:
     << : *ue-settings
     container_name: virtual-srsue
