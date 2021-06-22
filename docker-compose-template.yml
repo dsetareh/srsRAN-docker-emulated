@@ -1,0 +1,55 @@
+version: '3.8'
+
+x-srsue:
+  &ue-settings
+  build: .
+  command: UE_CMD_PLACEHOLDER
+  ipc: service:srsenb
+  cap_add:
+    - NET_ADMIN
+    - SYS_NICE
+  devices:
+    - /dev/net/tun
+  depends_on:
+    - srsenb
+
+services:
+  srsepc:
+    container_name: virtual-srsepc
+    build: .
+    command: EPC_CMD_PLACEHOLDER
+    networks:
+      corenet:
+        ipv4_address: PLACEHOLDER_IP
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+    devices:
+      - /dev/net/tun
+  srsenb:
+    container_name: virtual-srsenb
+    build: .
+    command: ENB_CMD_PLACEHOLDER
+    networks:
+      corenet:
+        ipv4_address: PLACEHOLDER_IP
+    ipc: shareable
+    cap_add:
+      - SYS_NICE
+    volumes:
+      - ./pcaps:/pcaps
+  srsue:
+    << : *ue-settings
+    container_name: virtual-srsue
+  # srsue2:
+  #   << : *ue-settings
+  #   container_name: virtual-srsue2
+  #   command: "srsue ue.conf.fauxrf --usim.imsi=001010123456780"
+
+networks:
+  corenet:
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.80.95.0/24 # Change subnet and above IPS to run multiple environments
+        
