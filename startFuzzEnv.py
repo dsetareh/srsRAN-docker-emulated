@@ -33,12 +33,20 @@ docker_config['services']['srsenb'][
     'command'] = 'srsenb /etc/srsran/enb.conf.fauxrf --enb.mme_addr=' + epc_ip + ' --enb.gtp_bind_addr=' + enb_ip + ' --enb.s1c_bind_addr=' + enb_ip
 
 docker_config['services']['srsenb']['volumes'][
-    0] = './pcaps/' + test_number + '.pcap:/pcaps/enb.pcap'
+    0] = './pcaps/' + test_number + ':/pcaps/'
 
 docker_config['services']['srsenb']['networks']['corenet'][
     'ipv4_address'] = enb_ip
 
 docker_config['networks']['corenet']['ipam']['config'][0]['subnet'] = subnet
+
+# container_name
+docker_config['services']['srsepc'][
+    'container_name'] = 'virtual-srsepc' + test_number
+docker_config['services']['srsenb'][
+    'container_name'] = 'virtual-srsenb' + test_number
+docker_config['services']['srsue'][
+    'container_name'] = 'virtual-srsue' + test_number
 
 with open(sys.argv[3], 'w') as newconf:
     yaml.dump(docker_config, newconf, default_flow_style=False)
