@@ -7,7 +7,7 @@ from pathlib import Path
 #
 # run without arguments to see options
 
-CONTAINER_ACTION_STEP = 5  # ! max number of containers started at once
+CONTAINER_ACTION_STEP = 4  # ! max number of containers started at once
 
 COMPOSE_DIRECTORY = "compose/"
 
@@ -184,19 +184,20 @@ def start_and_stop_containers(startNum, endNum):
         print(f"{bcolors.HEADER} Fuzzing Group " + str(groupIdx) +
               f"{bcolors.ENDC}")
         print("!! Starting container group" + str(groupIdx) + " [" +
-              str(groupIdx) + ":" +
-              str(min((groupIdx + 1 + CONTAINER_ACTION_STEP), endNum)) +
+              str(groupStartIdx) + ":" +
+              str(min((groupStartIdx + 1 + CONTAINER_ACTION_STEP), endNum)) +
               "] !!")
         start_test_containers(
             groupStartIdx, min(endNum, groupStartIdx + CONTAINER_ACTION_STEP))
         print("!! Stopping container group" + str(groupIdx) + " [" +
-              str(groupIdx) + ":" +
-              str(min((groupIdx + 1 + CONTAINER_ACTION_STEP), endNum)) +
+              str(groupStartIdx) + ":" +
+              str(min((groupStartIdx + 1 + CONTAINER_ACTION_STEP), endNum)) +
               "] !!")
         stop_test_containers(
             groupStartIdx, min(endNum, groupStartIdx + CONTAINER_ACTION_STEP))
         print(f"{bcolors.HEADER} Fuzz Group " + str(groupIdx) +
-              f" Complete! {bcolors.ENDC}")
+              f" Complete, starting next group in 2 seconds {bcolors.ENDC}")
+        time.sleep(2)
 
 
 def start_test_containers(startNum, endNum):
