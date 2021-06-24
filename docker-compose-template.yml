@@ -13,10 +13,7 @@ services:
       - SYS_NICE
     devices:
       - /dev/net/tun
-    deploy:
-      resources:
-        limits:
-          cpus: "0.4"
+
   srsenb:
     container_name: virtual-srsenb
     image: srsran-docker-emulated_srsenb:latest
@@ -29,10 +26,7 @@ services:
       - SYS_NICE
     volumes:
       - VOLUME_PLACEHOLDER
-    deploy:
-      resources:
-        limits:
-          cpus: "0.6"
+      
   srsue:
     image: srsran-docker-emulated_srsue:latest
     command: UE_CMD_PLACEHOLDER
@@ -45,10 +39,6 @@ services:
     depends_on:
       - srsenb
     container_name: virtual-srsue
-    deploy:
-      resources:
-        limits:
-          cpus: "0.6"
 
 networks:
   corenet:

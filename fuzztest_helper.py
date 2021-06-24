@@ -181,9 +181,9 @@ def print_guide():
 def start_and_stop_containers(startNum, endNum):
     for groupIdx, groupStartIdx in enumerate(
             range(startNum, endNum + 1, CONTAINER_ACTION_STEP)):
-        print(f"{bcolors.HEADER} Fuzzing Group " + str(groupIdx) +
+        print(f"{bcolors.HEADER} Fuzzing Group " + str(groupIdx + 1) +
               f"{bcolors.ENDC}")
-        print("!! Starting container group" + str(groupIdx) + " [" +
+        print("!! Starting Group" + str(groupIdx) + " [" +
               str(groupStartIdx) + ":" +
               str(min((groupStartIdx + 1 + CONTAINER_ACTION_STEP), endNum)) +
               "] !!")
