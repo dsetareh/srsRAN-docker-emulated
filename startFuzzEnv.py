@@ -3,7 +3,17 @@ import yaml, sys
 from pathlib import Path
 
 
-# "/home/dsetareh/docker/srsRAN-docker-emulated/docker-compose-template.yml"
+def mass_generate_compose(startNum, endNum, templateFilename, outputDir):
+    """generates composes from [startNum - endNum]
+
+    Args:
+        startNum (int): start val for range
+        endNum (int): end val for range
+    """
+    for test in range(startNum, endNum):
+        generate_compose(templateFilename, outputDir, test)
+
+
 def generate_compose(templateFilename, outputDir, testNumber):
     """generates and writes to file a docker-compose for fuzz testing from template
 
