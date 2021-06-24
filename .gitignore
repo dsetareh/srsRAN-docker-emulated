@@ -1,3 +1,2 @@
-pcaps/*
-test/*
+testing/*
 *.pcap

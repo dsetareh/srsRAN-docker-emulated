@@ -1,5 +1,5 @@
 # fuzztest_helper.py
-import yaml, sys
+import yaml, sys, subprocess, time
 from pathlib import Path
 
 
@@ -10,7 +10,7 @@ def mass_generate_compose(startNum, endNum, templateFilename, outputDir):
         startNum (int): start val for range
         endNum (int): end val for range
     """
-    for test in range(startNum, endNum):
+    for test in range(startNum, endNum + 1):
         generate_compose(templateFilename, outputDir, test)
 
 
@@ -32,8 +32,9 @@ def generate_compose(templateFilename, outputDir, testNumber):
 
     subnet = generate_subnet_string(testNumber)  # ! this iterations subnet
 
-    epc_ip = generate_ip(testNumber, 1)  # ! 'ip 1'
-    enb_ip = generate_ip(testNumber, 2)  # ! 'ip 2'
+    # NOTE: using 3 and 5 as we have space for 14 addrs in our subnet, also it wasnt working with 1 and 2
+    epc_ip = generate_ip(testNumber, 3)  # ! 'ip 1'
+    enb_ip = generate_ip(testNumber, 5)  # ! 'ip 2'
 
     output_folder = Path(outputDir)
     output_filename = output_folder / ("docker-compose_" + test_number +
@@ -88,6 +89,7 @@ def generate_subnet_string(iterationNum):
     Returns:
         subnet_string (str): /28 subnet for current iteration
     """
+
     first = str(iterationNum >> 12)  # first 8 bits [0-7]
     second = str((iterationNum & 4080) >> 4)  # middle 8 bits [8 - 15]
     third = str(
@@ -128,13 +130,69 @@ def generate_ip(iterationNum, ipNum):
     return "10." + first + "." + second + "." + third
 
 
+def print_guide():
+    """prints usage instructions and exits script
+    """
+    print("Supported commands:\n")
+    print("     Generate docker-compose files")
+    print(
+        "          ./fuzztest_helper.py generate <start index> <end index> <template file> <output dir>\n"
+    )
+    print("     Start containers from generated compose files")
+    print(
+        "          [executed in testing dir] ./fuzztest_helper.py start <start index> <end index>\n"
+    )
+    print("     Stop containers from generated compose files")
+    print(
+        "          [executed in testing dir] ./fuzztest_helper.py stop <start index> <end index>\n"
+    )
+    quit(1)
+
+
+def start_test_containers(startNum, endNum):
+    popenObjs = []
+    for contNum in range(startNum, endNum + 1):
+        popenObjs.append(
+            subprocess.Popen([
+                'docker-compose', '-p', 'srsRAN_' + str(contNum), '-f',
+                'compose/docker-compose_' + str(contNum) + '.yml', 'up', '-d'
+            ],
+                             stdin=None,
+                             stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL,
+                             close_fds=True))
+    return popenObjs
+
+
+def stop_test_containers(startNum, endNum):
+    for contNum in range(startNum, endNum + 1):
+        print("closing container" + str(contNum))
+        subprocess.call([
+            'docker-compose', '-p', 'srsRAN_' + str(contNum), '-f',
+            'compose/docker-compose_' + str(contNum) + '.yml', 'down', '-v'
+        ])
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 5:
-        print(
-            "./fuzztest_helper.py <start index> <end index> <template file> <output dir>"
-        )
-        quit(1)
-    mass_generate_compose(int(sys.argv[1]), int(sys.argv[2]), sys.argv[3],
-                          sys.argv[4])
-    print("Generated docker-composes [" + sys.argv[1] + ":" +
-          str(int(sys.argv[2]) - 1) + "].")
+
+    if len(sys.argv) <= 2:
+        print_guide()
+
+    if sys.argv[1] == "generate":
+        mass_generate_compose(int(sys.argv[2]), int(sys.argv[3]), sys.argv[4],
+                              sys.argv[5])
+        print("Generated docker-composes [" + sys.argv[2] + ":" +
+              str(int(sys.argv[3])) + "].")
+        quit(0)
+
+    if sys.argv[1] == "start":
+        print("Starting tests [" + sys.argv[2] + ":" + str(int(sys.argv[3])) +
+              "].")
+        start_test_containers(int(sys.argv[2]), int(sys.argv[3]))
+    if sys.argv[1] == "stop":
+        print("Stopping tests [" + sys.argv[2] + ":" + str(int(sys.argv[3])) +
+              "].")
+        stop_test_containers(int(sys.argv[2]), int(sys.argv[3]))
+        quit(0)
+
+    print_guide()
