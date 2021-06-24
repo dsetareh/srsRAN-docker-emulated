@@ -1,4 +1,4 @@
-# startFuzzEnv.py
+# fuzztest_helper.py
 import yaml, sys
 from pathlib import Path
 
@@ -126,3 +126,15 @@ def generate_ip(iterationNum, ipNum):
     third = str((16 * (iterationNum & 15)) + ipNum)
 
     return "10." + first + "." + second + "." + third
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 5:
+        print(
+            "./fuzztest_helper.py <start index> <end index> <template file> <output dir>"
+        )
+        quit(1)
+    mass_generate_compose(int(sys.argv[1]), int(sys.argv[2]), sys.argv[3],
+                          sys.argv[4])
+    print("Generated docker-composes [" + sys.argv[1] + ":" +
+          str(int(sys.argv[2]) - 1) + "].")
