@@ -1,19 +1,33 @@
 # startFuzzEnv.py
 import yaml, sys
+from pathlib import Path
 
 
 # "/home/dsetareh/docker/srsRAN-docker-emulated/docker-compose-template.yml"
 def generate_compose(templateFilename, outputDir, testNumber):
+    """generates and writes to file a docker-compose for fuzz testing from template
+
+    Args:
+        templateFilename (str): template file for docker-compose generation
+        outputDir (str): output directory for docker-compose outputs
+        testNumber (int): current test number
+    """
     with open(templateFilename, 'r') as ymlfile:
         try:
             docker_config = yaml.safe_load(ymlfile)
         except yaml.YAMLError as exc:
             print(exc)
 
-    test_number = str(sys.argv[1])  # ! current test iteration
-    subnet = str(sys.argv[2]) + '0/24'  # ! '10.80.95.0/24' subnet
-    epc_ip = str(sys.argv[2]) + '10'  # ! '10.80.95.10'
-    enb_ip = str(sys.argv[2]) + '11'  # ! '10.80.95.11'
+    test_number = str(testNumber)  # ! current test iteration
+
+    subnet = generate_subnet_string(testNumber)  # ! this iterations subnet
+
+    epc_ip = generate_ip(testNumber, 1)  # ! 'ip 1'
+    enb_ip = generate_ip(testNumber, 2)  # ! 'ip 2'
+
+    output_folder = Path(outputDir)
+    output_filename = output_folder / ("docker-compose_" + test_number +
+                                       ".yml")
 
     docker_config['services']['srsue'][
         'command'] = 'stdbuf -oL srsue /etc/srsran/ue.conf.fauxrf -f' + test_number
@@ -45,9 +59,9 @@ def generate_compose(templateFilename, outputDir, testNumber):
         'container_name'] = 'virtual-srsue' + test_number
 
     with open(sys.argv[3], 'w') as newconf:
-        yaml.dump(docker_config, newconf, default_flow_style=False)
+        yaml.dump(output_filename, newconf, default_flow_style=False)
 
-    print("Generated Docker Compose for ")
+    print("Generated Test# " + f"{testNumber:07d}" + " | Subnet: " + subnet)
 
 
 def generate_subnet_string(iterationNum):
@@ -91,6 +105,10 @@ def generate_ip(iterationNum, ipNum):
     Returns:
         ip_address (str): ip within iterations subnet
     """
+
+    if ipNum > 16:
+        print("ipNum too large for a /28 subnet!")
+        quit(1)
     first = str(iterationNum >> 12)  # first 8 bits [0-7]
     second = str((iterationNum & 4080) >> 4)  # middle 8 bits [8 - 15]
     # final 4 bits, multiplied by 16 to obtein this iterations subnet,
