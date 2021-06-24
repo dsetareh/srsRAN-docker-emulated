@@ -1,6 +1,26 @@
-# fuzztest_helper.py
 import yaml, sys, subprocess, time
 from pathlib import Path
+
+# fuzztest_helper.py
+#
+# Generates and executes fuzztesting on srsran docker containers
+#
+# run without arguments to see options
+
+CONTAINER_ACTION_STEP = 5  # ! max number of containers started at once
+
+
+# colored text stuff
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 
 def mass_generate_compose(startNum, endNum, templateFilename, outputDir):
@@ -142,7 +162,7 @@ def print_guide():
     print(
         "          [executed in testing dir] ./fuzztest_helper.py start <start index> <end index>\n"
     )
-    print("     Stop containers from generated compose files")
+    print("     Stop containers from generated compose files, generate logs")
     print(
         "          [executed in testing dir] ./fuzztest_helper.py stop <start index> <end index>\n"
     )
@@ -150,27 +170,134 @@ def print_guide():
 
 
 def start_test_containers(startNum, endNum):
+    """starts containers in range specified, in groups of CONTAINER_ACTION_STEP (currently 5)
+
+    Args:
+        startNum (int): start index
+        endNum (int): end index
+
+    Returns:
+        [subprocess.Popen]: array of handles for started processes
+    """
     popenObjs = []
-    for contNum in range(startNum, endNum + 1):
-        popenObjs.append(
-            subprocess.Popen([
-                'docker-compose', '-p', 'srsRAN_' + str(contNum), '-f',
-                'compose/docker-compose_' + str(contNum) + '.yml', 'up', '-d'
-            ],
-                             stdin=None,
-                             stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL,
-                             close_fds=True))
+    for groupIdx in range(startNum, endNum + 1, CONTAINER_ACTION_STEP):
+        print(f"{bcolors.HEADER}!! Starting container group" + str(groupIdx) +
+              " [" + str(groupIdx) + ":" +
+              str(min((groupIdx + 1 + CONTAINER_ACTION_STEP), endNum)) +
+              f"] !!{bcolors.ENDC}")
+        for currIterNum in range(groupIdx,
+                                 groupIdx + 1 + CONTAINER_ACTION_STEP):
+            if currIterNum <= endNum:
+                popenObjs.append(start_container(currIterNum))
+
     return popenObjs
 
 
 def stop_test_containers(startNum, endNum):
-    for contNum in range(startNum, endNum + 1):
-        print("closing container" + str(contNum))
-        subprocess.call([
-            'docker-compose', '-p', 'srsRAN_' + str(contNum), '-f',
-            'compose/docker-compose_' + str(contNum) + '.yml', 'down', '-v'
-        ])
+    """stops containers in range specified and saves logs, in groups of CONTAINER_ACTION_STEP (currently 5)
+
+    Args:
+        startNum (int): start index
+        endNum (int): end index
+    """
+    for groupIdx in range(startNum, endNum + 1, CONTAINER_ACTION_STEP):
+        print(f"{bcolors.HEADER}!! Stopping container group " + str(groupIdx) +
+              " [" + str(groupIdx) + ":" +
+              str(min((groupIdx + 1 + CONTAINER_ACTION_STEP), endNum)) +
+              f"] !!{bcolors.ENDC}")
+        for currIterNum in range(groupIdx,
+                                 groupIdx + 1 + CONTAINER_ACTION_STEP):
+            if currIterNum <= endNum:
+                stop_container(currIterNum)
+
+
+def stop_container(contNum):
+    """stops a single container
+
+    Args:
+        contNum (int): container # to stop
+    """
+    numSecWaited = 0
+    while not check_test_completion(contNum):
+        numSecWaited += 1
+        print(f"{bcolors.WARNING}Waiting " + str(numSecWaited) +
+              "s for test completion on container " + str(contNum) +
+              F"{bcolors.ENDC}",
+              end='\r')
+        time.sleep(1)
+    print()
+    print("closing container" + str(contNum))
+    subprocess.call([
+        'docker-compose', '-p', 'srsRAN_' + str(contNum), '-f',
+        'compose/docker-compose_' + str(contNum) + '.yml', 'down', '-v'
+    ],
+                    stdin=None,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    close_fds=True)
+    print("requested to close container " + str(contNum))
+
+
+def start_container(contNum):
+    """starts a single container
+
+    Args:
+        contNum (int): container # to start
+
+    Returns:
+        [subprocess.Popen]: handle for started process
+    """
+    print("requested to start container " + str(contNum))
+    handle = subprocess.Popen([
+        'docker-compose', '-p', 'srsRAN_' + str(contNum), '-f',
+        'compose/docker-compose_' + str(contNum) + '.yml', 'up', '-d'
+    ],
+                              stdin=None,
+                              stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL,
+                              close_fds=True)
+    return handle
+
+
+def save_logs(contNum):
+    """save docker-compose logs for container to file
+
+    Args:
+        contNum (int): container #
+    """
+    print("saving logs for container " + str(contNum))
+    with open("tests/" + str(contNum) + ".txt", "w") as text_file:
+        text_file.write(get_logs(contNum))
+
+
+def check_test_completion(contNum):
+    """check if RRCCONNECTIONREQUEST has occured in container
+
+    Args:
+        contNum (int): container #
+
+    Returns:
+        [boolean]: True if connected, False if not
+    """
+    logs = get_logs(contNum)
+    return "Network attach successful." in logs
+
+
+def get_logs(contNum):
+    """returns logs from container group
+
+    Args:
+        contNum (int): container #
+
+    Returns:
+        [str]: logs from docker-compose
+    """
+    logs = subprocess.run([
+        'docker-compose', '-p', 'srsRAN_' + str(contNum), '-f',
+        'compose/docker-compose_' + str(contNum) + '.yml', 'logs', '--no-color'
+    ],
+                          stdout=subprocess.PIPE).stdout.decode('utf-8')
+    return logs
 
 
 if __name__ == "__main__":
@@ -189,6 +316,8 @@ if __name__ == "__main__":
         print("Starting tests [" + sys.argv[2] + ":" + str(int(sys.argv[3])) +
               "].")
         start_test_containers(int(sys.argv[2]), int(sys.argv[3]))
+        quit(0)
+
     if sys.argv[1] == "stop":
         print("Stopping tests [" + sys.argv[2] + ":" + str(int(sys.argv[3])) +
               "].")
