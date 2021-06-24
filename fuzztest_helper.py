@@ -209,13 +209,9 @@ def start_test_containers(startNum, endNum):
     Returns:
         [subprocess.Popen]: array of handles for started processes
     """
-    if 1 + endNum - startNum > CONTAINER_ACTION_STEP:
-        print("range too large, try fuzz instead of start")
-        quit(1)
     popenObjs = []
     for groupIdx in range(startNum, endNum + 1, CONTAINER_ACTION_STEP):
-        for currIterNum in range(groupIdx,
-                                 groupIdx + 1 + CONTAINER_ACTION_STEP):
+        for currIterNum in range(groupIdx, groupIdx + CONTAINER_ACTION_STEP):
             if currIterNum <= endNum:
                 popenObjs.append(start_container(currIterNum))
 
@@ -231,8 +227,7 @@ def stop_test_containers(startNum, endNum, ignoreCompletion=False):
         ignoreCompletion (boolean, optional, default=False): if True, stops containers without checking whether they've completed their task
     """
     for groupIdx in range(startNum, endNum + 1, CONTAINER_ACTION_STEP):
-        for currIterNum in range(groupIdx,
-                                 groupIdx + 1 + CONTAINER_ACTION_STEP):
+        for currIterNum in range(groupIdx, groupIdx + CONTAINER_ACTION_STEP):
             if currIterNum <= endNum:
                 stop_container(currIterNum, ignoreCompletion)
 
@@ -331,12 +326,25 @@ def get_logs(contNum):
     return logs
 
 
+def range_check_helper_functions(startNum, endNum):
+    """When using start container helper function, check if range is large and exit if it is
+
+    Args:
+        startNum (int): start index
+        endNum (int): end index
+    """
+    if 1 + endNum - startNum > CONTAINER_ACTION_STEP:
+        print("range too large, try fuzz instead of start")
+        quit(1)
+
+
 if __name__ == "__main__":
 
     if len(sys.argv) < 4:
         print_guide()
     if len(sys.argv) == 5 and (sys.argv[1] == "start" or sys.argv[1] == "stop"
-                               or sys.argv[1] == "fuzz"):
+                               or sys.argv[1] == "fuzz"
+                               or sys.argv[1] == "stopforce"):
         print(f"{bcolors.FAIL}COMPOSE DIRECTORY SET: " + sys.argv[4] +
               f"{bcolors.ENDC}")
         COMPOSE_DIRECTORY = sys.argv[4]
@@ -351,6 +359,7 @@ if __name__ == "__main__":
     if sys.argv[1] == "start":
         print("Starting tests [" + sys.argv[2] + ":" + str(int(sys.argv[3])) +
               "].")
+        range_check_helper_functions(int(sys.argv[2]), int(sys.argv[3]))
         start_test_containers(int(sys.argv[2]), int(sys.argv[3]))
         print(f"{bcolors.OKGREEN}Containers [" + sys.argv[2] + ":" +
               str(int(sys.argv[3])) + f"] Started.{bcolors.ENDC}")
