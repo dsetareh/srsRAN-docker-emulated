@@ -58,8 +58,8 @@ def generate_compose(templateFilename, outputDir, testNumber):
     docker_config['services']['srsue'][
         'container_name'] = 'virtual-srsue' + test_number
 
-    with open(sys.argv[3], 'w') as newconf:
-        yaml.dump(output_filename, newconf, default_flow_style=False)
+    with open(output_filename, 'w') as newconf:
+        yaml.dump(docker_config, newconf, default_flow_style=False)
 
     print("Generated Test# " + f"{testNumber:07d}" + " | Subnet: " + subnet)
 
