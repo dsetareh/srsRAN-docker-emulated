@@ -9,6 +9,7 @@ from pathlib import Path
 
 CONTAINER_ACTION_STEP = 5  # ! max number of containers started at once
 
+COMPOSE_DIRECTORY = "compose/"
 
 # colored text stuff
 class bcolors:
@@ -32,6 +33,7 @@ def mass_generate_compose(startNum, endNum, templateFilename, outputDir):
     """
     for test in range(startNum, endNum + 1):
         generate_compose(templateFilename, outputDir, test)
+    print()
 
 
 def generate_compose(templateFilename, outputDir, testNumber):
@@ -92,7 +94,8 @@ def generate_compose(templateFilename, outputDir, testNumber):
     with open(output_filename, 'w') as newconf:
         yaml.dump(docker_config, newconf, default_flow_style=False)
 
-    print("Generated Test# " + f"{testNumber:07d}" + " | Subnet: " + subnet)
+    print("Generated Test# " + f"{testNumber:07d}" + " | Subnet: " + subnet,
+          end='\r')
 
 
 def generate_subnet_string(iterationNum):
@@ -153,20 +156,47 @@ def generate_ip(iterationNum, ipNum):
 def print_guide():
     """prints usage instructions and exits script
     """
-    print("Supported commands:\n")
-    print("     Generate docker-compose files")
+    print("\nSupported commands:\n")
     print(
-        "          ./fuzztest_helper.py generate <start index> <end index> <template file> <output dir>\n"
+        f"     [Main Function] Automatically start and stop containers per fuzzing spec:"
     )
-    print("     Start containers from generated compose files")
     print(
-        "          [executed in testing dir] ./fuzztest_helper.py start <start index> <end index>\n"
+        f"          ./fuzztest_helper.py {bcolors.HEADER}fuzz{bcolors.ENDC} <start index> <end index> <(optional)docker-compose directory>\n"  # len(args) = 5
     )
-    print("     Stop containers from generated compose files, generate logs")
+    print("     Generate docker-compose files:")
     print(
-        "          [executed in testing dir] ./fuzztest_helper.py stop <start index> <end index>\n"
+        f"          ./fuzztest_helper.py {bcolors.HEADER}generate{bcolors.ENDC} <start index> <end index> <template file> <output dir>\n"  # len(args) = 6
+    )
+    print("     Start containers from generated compose files:")
+    print(
+        f"          ./fuzztest_helper.py {bcolors.HEADER}start{bcolors.ENDC} <start index> <end index> <(optional)docker-compose directory>\n"  # len(args) = 5
+    )
+    print("     Stop containers from generated compose files, generate logs:")
+    print(
+        f"          ./fuzztest_helper.py {bcolors.HEADER}stop{bcolors.ENDC} <start index> <end index> <(optional)docker-compose directory>\n"  # len(args) = 5
     )
     quit(1)
+
+
+def start_and_stop_containers(startNum, endNum):
+    for groupIdx, groupStartIdx in enumerate(
+            range(startNum, endNum + 1, CONTAINER_ACTION_STEP)):
+        print(f"{bcolors.HEADER} Fuzzing Group " + str(groupIdx) +
+              f"{bcolors.ENDC}")
+        print("!! Starting container group" + str(groupIdx) + " [" +
+              str(groupIdx) + ":" +
+              str(min((groupIdx + 1 + CONTAINER_ACTION_STEP), endNum)) +
+              "] !!")
+        start_test_containers(
+            groupStartIdx, min(endNum, groupStartIdx + CONTAINER_ACTION_STEP))
+        print("!! Stopping container group" + str(groupIdx) + " [" +
+              str(groupIdx) + ":" +
+              str(min((groupIdx + 1 + CONTAINER_ACTION_STEP), endNum)) +
+              "] !!")
+        stop_test_containers(
+            groupStartIdx, min(endNum, groupStartIdx + CONTAINER_ACTION_STEP))
+        print(f"{bcolors.HEADER} Fuzz Group " + str(groupIdx) +
+              f" Complete! {bcolors.ENDC}")
 
 
 def start_test_containers(startNum, endNum):
@@ -179,12 +209,11 @@ def start_test_containers(startNum, endNum):
     Returns:
         [subprocess.Popen]: array of handles for started processes
     """
+    if 1 + endNum - startNum > CONTAINER_ACTION_STEP:
+        print("range too large, try fuzz instead of start")
+        quit(1)
     popenObjs = []
     for groupIdx in range(startNum, endNum + 1, CONTAINER_ACTION_STEP):
-        print(f"{bcolors.HEADER}!! Starting container group" + str(groupIdx) +
-              " [" + str(groupIdx) + ":" +
-              str(min((groupIdx + 1 + CONTAINER_ACTION_STEP), endNum)) +
-              f"] !!{bcolors.ENDC}")
         for currIterNum in range(groupIdx,
                                  groupIdx + 1 + CONTAINER_ACTION_STEP):
             if currIterNum <= endNum:
@@ -193,32 +222,31 @@ def start_test_containers(startNum, endNum):
     return popenObjs
 
 
-def stop_test_containers(startNum, endNum):
+def stop_test_containers(startNum, endNum, ignoreCompletion=False):
     """stops containers in range specified and saves logs, in groups of CONTAINER_ACTION_STEP (currently 5)
 
     Args:
         startNum (int): start index
         endNum (int): end index
+        ignoreCompletion (boolean, optional, default=False): if True, stops containers without checking whether they've completed their task
     """
     for groupIdx in range(startNum, endNum + 1, CONTAINER_ACTION_STEP):
-        print(f"{bcolors.HEADER}!! Stopping container group " + str(groupIdx) +
-              " [" + str(groupIdx) + ":" +
-              str(min((groupIdx + 1 + CONTAINER_ACTION_STEP), endNum)) +
-              f"] !!{bcolors.ENDC}")
         for currIterNum in range(groupIdx,
                                  groupIdx + 1 + CONTAINER_ACTION_STEP):
             if currIterNum <= endNum:
-                stop_container(currIterNum)
+                stop_container(currIterNum, ignoreCompletion)
 
 
-def stop_container(contNum):
+def stop_container(contNum, ignoreCompletion=False):
     """stops a single container
 
     Args:
         contNum (int): container # to stop
+        ignoreCompletion (boolean, optional, default=False): if True, stops containers without checking whether they've completed their task
+
     """
     numSecWaited = 0
-    while not check_test_completion(contNum):
+    while not (check_test_completion(contNum) or ignoreCompletion):
         numSecWaited += 1
         print(f"{bcolors.WARNING}Waiting " + str(numSecWaited) +
               "s for test completion on container " + str(contNum) +
@@ -229,7 +257,8 @@ def stop_container(contNum):
     print("closing container" + str(contNum))
     subprocess.call([
         'docker-compose', '-p', 'srsRAN_' + str(contNum), '-f',
-        'compose/docker-compose_' + str(contNum) + '.yml', 'down', '-v'
+        f'{COMPOSE_DIRECTORY}docker-compose_' + str(contNum) + '.yml', 'down',
+        '-v'
     ],
                     stdin=None,
                     stdout=subprocess.DEVNULL,
@@ -250,7 +279,8 @@ def start_container(contNum):
     print("requested to start container " + str(contNum))
     handle = subprocess.Popen([
         'docker-compose', '-p', 'srsRAN_' + str(contNum), '-f',
-        'compose/docker-compose_' + str(contNum) + '.yml', 'up', '-d'
+        f'{COMPOSE_DIRECTORY}docker-compose_' + str(contNum) + '.yml', 'up',
+        '-d'
     ],
                               stdin=None,
                               stdout=subprocess.DEVNULL,
@@ -294,7 +324,8 @@ def get_logs(contNum):
     """
     logs = subprocess.run([
         'docker-compose', '-p', 'srsRAN_' + str(contNum), '-f',
-        'compose/docker-compose_' + str(contNum) + '.yml', 'logs', '--no-color'
+        f'{COMPOSE_DIRECTORY}docker-compose_' + str(contNum) + '.yml', 'logs',
+        '--no-color'
     ],
                           stdout=subprocess.PIPE).stdout.decode('utf-8')
     return logs
@@ -302,26 +333,51 @@ def get_logs(contNum):
 
 if __name__ == "__main__":
 
-    if len(sys.argv) <= 2:
+    if len(sys.argv) < 4:
         print_guide()
+    if len(sys.argv) == 5 and (sys.argv[1] == "start" or sys.argv[1] == "stop"
+                               or sys.argv[1] == "fuzz"):
+        print(f"{bcolors.FAIL}COMPOSE DIRECTORY SET: " + sys.argv[4] +
+              f"{bcolors.ENDC}")
+        COMPOSE_DIRECTORY = sys.argv[4]
 
     if sys.argv[1] == "generate":
         mass_generate_compose(int(sys.argv[2]), int(sys.argv[3]), sys.argv[4],
                               sys.argv[5])
-        print("Generated docker-composes [" + sys.argv[2] + ":" +
-              str(int(sys.argv[3])) + "].")
+        print(f"{bcolors.OKGREEN}Generated docker-composes [" + sys.argv[2] +
+              ":" + str(int(sys.argv[3])) + f"].{bcolors.ENDC}")
         quit(0)
 
     if sys.argv[1] == "start":
         print("Starting tests [" + sys.argv[2] + ":" + str(int(sys.argv[3])) +
               "].")
         start_test_containers(int(sys.argv[2]), int(sys.argv[3]))
+        print(f"{bcolors.OKGREEN}Containers [" + sys.argv[2] + ":" +
+              str(int(sys.argv[3])) + f"] Started.{bcolors.ENDC}")
         quit(0)
 
     if sys.argv[1] == "stop":
         print("Stopping tests [" + sys.argv[2] + ":" + str(int(sys.argv[3])) +
               "].")
         stop_test_containers(int(sys.argv[2]), int(sys.argv[3]))
+        print(f"{bcolors.OKGREEN}Containers [" + sys.argv[2] + ":" +
+              str(int(sys.argv[3])) + f"] Stopped.{bcolors.ENDC}")
+        quit(0)
+
+    if sys.argv[1] == "stopforce":
+        print("FORCE STOPPING tests [" + sys.argv[2] + ":" + str(int(sys.argv[3])) +
+              "].")
+        stop_test_containers(int(sys.argv[2]), int(sys.argv[3]), True)
+        print(f"{bcolors.OKGREEN}Containers [" + sys.argv[2] + ":" +
+              str(int(sys.argv[3])) + f"] FORCE Stopped.{bcolors.ENDC}")
+        quit(0)
+
+    if sys.argv[1] == "fuzz":
+        print("Running full fuzz tests on [" + sys.argv[2] + ":" +
+              str(int(sys.argv[3])) + "].")
+        start_and_stop_containers(int(sys.argv[2]), int(sys.argv[3]))
+        print(f"{bcolors.OKGREEN}Testing [" + sys.argv[2] + ":" +
+              str(int(sys.argv[3])) + f"] Complete.{bcolors.ENDC}")
         quit(0)
 
     print_guide()
