@@ -1,5 +1,7 @@
 # srsran-docker-emulated
 
+> :warning: **i never got this working, good luck**
+
 > This based on the repo created by [pgorczak](https://github.com/pgorczak),
 > updated to use the latest version of srsLTE, since renamed to srsRAN.
 
